@@ -28,6 +28,8 @@ from collections import deque
 #sound = pyglet.media.load(r"D:\Halliburton\yolov7_WorkerTracking\AlarmSounds\alarm.wav", streaming=False)
 
 global track_id
+global crp_cnt
+crp_cnt=0
 track_id = [0]
 # ............................... Roi Functions ............................
 
@@ -76,7 +78,7 @@ def compute_color_for_labels(label):
 global c
 c = 0
 
-def draw_boxes(img, bbox, identities=None,categories=None, names=None, offset=(0, 0), rs=None):
+def draw_boxes(img, bbox, det,identities=None,categories=None, names=None, offset=(0, 0), rs=None):
     global strt_time, idlecount
     newtime = (time.time())
     global track_id, em, c, email_receiver, email_sender
@@ -114,6 +116,17 @@ def draw_boxes(img, bbox, identities=None,categories=None, names=None, offset=(0
 
             text = "{}|{}".format(id, int(dwell_time[id]))
             print(text)
+            #crop edit
+            for *xyxy, conf, cls in reversed(det):
+                # crop an image based on coordinates
+                object_coordinates = [int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])]
+                cropobj = img[int(xyxy[1]):int(xyxy[3]), int(xyxy[0]):int(xyxy[2])]
+
+                # save crop part
+                crop_file_path = os.path.join("crop", str(crp_cnt) + ".jpg")
+                cv2.imwrite(crop_file_path, cropobj)
+                crp_cnt = crp_cnt + 1
+
             cv2.putText(img, text, (x1, y1 - 5), cv2.FONT_HERSHEY_COMPLEX, 1, (0, 0, 255), 1)
             cv2.rectangle(img, (x1, y1), (x2, y2), (255, 144, 30), 2)
             cv2.rectangle(img, (x1, y1 - 20), (x1 + w, y1), (255, 144, 30), -1)
@@ -142,6 +155,9 @@ def detect(save_img=False):
                         min_hits=sort_min_hits,
                         iou_threshold=sort_iou_thresh)
     # .........................
+    if not os.path.exists("crop"):
+        os.mkdir("crop")
+    crp_cnt = 0
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
@@ -278,7 +294,7 @@ def detect(save_img=False):
                     identities = tracked_dets[:, 8]
                     categories = tracked_dets[:, 4]
                     ROI_stat = tracked_dets[:, 9]
-                    draw_boxes(im0, bbox_xyxy, identities, categories, names, rs = ROI_stat)
+                    draw_boxes(im0, bbox_xyxy,det, identities, categories, names, rs = ROI_stat)
 
             txt1 = f'Number of workers in ROI : {Roi_C}'
             #cv2.putText(im0, txt1, (25, 190), cv2.FONT_HERSHEY_SIMPLEX, 1, [0, 255, 0], 3)
